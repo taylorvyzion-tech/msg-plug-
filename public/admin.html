@@ -1,0 +1,50 @@
+admin.html
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 40px auto; }
+    input, textarea { width: 100%; padding: 8px; margin: 6px 0; }
+    button { padding: 10px 14px; }
+    code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h2>Chatbot SaaS – Admin</h2>
+  <p>Use your Admin Key from <code>.env</code>.</p>
+  <label>Admin Key</label>
+  <input id="adminKey" placeholder="QB2G-strong-key">
+  <label>Business Name</label>
+  <input id="name" placeholder="Fresh Fade Studio">
+  <label>Slug</label>
+  <input id="slug" placeholder="fresh-fade-studio">
+  <label>Owner Email</label>
+  <input id="ownerEmail" placeholder="owner@example.com">
+  <label>Pack JSON</label>
+  <textarea id="pack" rows="10" placeholder='{"bot_id":"barber_v1", ... }'></textarea>
+  <button onclick="create()">Create Business</button>
+  <pre id="out"></pre>
+
+  <script>
+    async function create(){
+      const body = {
+        adminKey: document.getElementById('adminKey').value,
+        name: document.getElementById('name').value,
+        slug: document.getElementById('slug').value,
+        ownerEmail: document.getElementById('ownerEmail').value,
+        pack: JSON.parse(document.getElementById('pack').value || "{}")
+      };
+      const res = await fetch('/api/business', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      document.getElementById('out').textContent = JSON.stringify(json, null, 2);
+      if (json.ok) window.location.href = '/c/' + body.slug;
+    }
+  </script>
+</body>
+</html>

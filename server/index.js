@@ -19,8 +19,8 @@ app.use(bodyParser.json());
 // Serve files from /public (so /admin.html works)
 app.use(express.static(path.join(__dirname, "..", "public")));
 // Explicit route: serve the admin page
-app.get("/admin.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "admin.html"));
+app.get("/", (req, res) => {
+  res.redirect("/admin.html");
 });
 // Simple health check
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -92,6 +92,9 @@ app.get("/c/:slug", async (req, res) => {
     }
   </script>
 </body></html>`);
+});
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
 // Start server

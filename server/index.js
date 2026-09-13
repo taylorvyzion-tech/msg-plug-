@@ -1,104 +1,357 @@
-// server code placeholder
 // server/index.js
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const dotenv = require("dotenv");
-dotenv.config();
+require("dotenv").config();
 
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { respond } = require("./brain");
+const { notifyNewLead, sendSms, smsConfigured } = require("./notify");
 
+const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.static(PUBLIC_DIR));
 
-// Serve files from /public (so /admin.html works)
-app.use(express.static(path.join(__dirname, "..", "public")));
-// Explicit route: serve the admin page
-app.get("/", (req, res) => {
-  res.redirect("/admin.html");
-});
-// Simple health check
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isAdmin(req) {
+  const key = req.get("x-admin-key") || (req.body && req.body.adminKey);
+  const expected = process.env.ADMIN_KEY;
+  return Boolean(expected) && key === expected;
+}
+
+function slugify(s) {
+  return String(s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+function parsePack(business) {
+  if (!business || !business.packJson) return {};
+  try {
+    return JSON.parse(business.packJson);
+  } catch {
+    return {};
+  }
+}
+
+// In-memory conversation state. Fine for a single process; move to Redis or a
+// DB table when you run more than one instance.
+const sessions = new Map();
+const SESSION_TTL_MS = 1000 * 60 * 60; // 1 hour
+
+function getSession(id) {
+  const now = Date.now();
+  let s = sessions.get(id);
+  if (!s || now - s.touched > SESSION_TTL_MS) {
+    s = { flow: null, awaiting: null, booking: {}, touched: now };
+    sessions.set(id, s);
+  }
+  s.touched = now;
+  return s;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, s] of sessions) {
+    if (now - s.touched > SESSION_TTL_MS) sessions.delete(id);
+  }
+}, 1000 * 60 * 10).unref();
+
+// ---------------------------------------------------------------------------
+// Pages
+// ---------------------------------------------------------------------------
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// Create a business + (optional) a simple chatbot
-// Expect body: { adminKey, name, slug, ownerEmail, pack }
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+});
+
+// Public chat page for one business.
+app.get("/c/:slug", (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "chat.html"));
+});
+
+// ---------------------------------------------------------------------------
+// Admin API
+// ---------------------------------------------------------------------------
+
+// Create or update a business from a content pack.
 app.post("/api/business", async (req, res) => {
   try {
-    const { adminKey, name, slug, ownerEmail, pack } = req.body;
+    if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
 
-    if (!adminKey || adminKey !== process.env.ADMIN_KEY) {
-      return res.status(401).json({ error: "Bad admin key" });
-    }
+    const { name, ownerEmail, pack } = req.body;
+    const slug = slugify(req.body.slug || name);
+
     if (!name || !slug) {
-      return res.status(400).json({ error: "name and slug are required" });
+      return res.status(400).json({ error: "name_and_slug_required" });
     }
 
-    // Create Business
-    const business = await prisma.business.create({
-      data: {
-        name,
-        industry: pack?.business?.industry || null,
-      },
+    const packObj = pack && typeof pack === "object" ? pack : {};
+    const packJson = Object.keys(packObj).length ? JSON.stringify(packObj) : null;
+    const bizInfo = packObj.business || {};
+
+    const data = {
+      name,
+      ownerEmail: ownerEmail || null,
+      phone: bizInfo.phone || null,
+      industry: bizInfo.industry || null,
+      packJson,
+    };
+
+    const business = await prisma.business.upsert({
+      where: { slug },
+      update: data,
+      create: { ...data, slug },
     });
 
-    // Create a simple Chatbot tied to the business
-    await prisma.chatbot.create({
-      data: {
-        name: pack?.bot_id || `${name} Bot`,
-        description: pack?.branding?.greeting || "Business assistant",
-        businessId: business.id,
-      },
+    const botName = packObj.bot_id || `${name} Bot`;
+    const existingBot = await prisma.chatbot.findFirst({
+      where: { businessId: business.id },
     });
+    if (existingBot) {
+      await prisma.chatbot.update({
+        where: { id: existingBot.id },
+        data: {
+          name: botName,
+          description: (packObj.branding && packObj.branding.greeting) || null,
+        },
+      });
+    } else {
+      await prisma.chatbot.create({
+        data: {
+          name: botName,
+          description: (packObj.branding && packObj.branding.greeting) || null,
+          businessId: business.id,
+        },
+      });
+    }
 
-    return res.json({ ok: true, businessId: business.id, slug });
+    res.json({
+      ok: true,
+      businessId: business.id,
+      slug: business.slug,
+      chatUrl: `/c/${business.slug}`,
+    });
   } catch (err) {
-    console.error(err);
+    console.error("POST /api/business", err);
     res.status(500).json({ error: "server_error" });
   }
 });
 
-// Very simple public chatbot page for demo
-app.get("/c/:slug", async (req, res) => {
-  // In a full app, you’d look up the business by slug.
-  // For now, just render a tiny page that echoes messages.
-  res.send(`<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>Chatbot</title></head>
-<body style="font-family:sans-serif;max-width:600px;margin:40px auto">
-  <h2>Chatbot Demo for ${req.params.slug}</h2>
-  <div id="log" style="border:1px solid #ccc;padding:12px;height:240px;overflow:auto"></div>
-  <div style="margin-top:8px">
-    <input id="msg" placeholder="Type 'prices', 'hours', or 'book'..." style="width:75%;padding:8px">
-    <button onclick="send()" style="padding:8px 12px">Send</button>
-  </div>
-  <script>
-    const log = document.getElementById('log');
-    function say(who, text){ const p=document.createElement('p'); p.innerHTML = '<b>'+who+':</b> '+text; log.appendChild(p); log.scrollTop = log.scrollHeight; }
-    function send(){
-      const v = document.getElementById('msg').value.trim(); if(!v) return;
-      say('You', v);
-      // toy intent logic just for demo:
-      let reply = "I can help with hours, prices, or booking.";
-      if(/hour|open|close/i.test(v)) reply = "Tue–Sat 9a–7p, Sun 10a–3p, Mon closed.";
-      if(/price|how much/i.test(v)) reply = "Cuts $25, beard $15, full $35.";
-      if(/book|appoint/i.test(v)) reply = "Drop your name/phone and we’ll confirm!";
-      say('Bot', reply);
-      document.getElementById('msg').value = '';
-    }
-  </script>
-</body></html>`);
-});
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+// Send yourself a test text to confirm Twilio is wired up correctly.
+app.post("/api/test-sms", async (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
+  if (!smsConfigured) {
+    return res.status(400).json({
+      error: "sms_not_configured",
+      hint: "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER in .env, then restart.",
+    });
+  }
+  const to = req.body && req.body.to;
+  if (!to) return res.status(400).json({ error: "to_required" });
+
+  const result = await sendSms(
+    to,
+    "MSGPlug test message. If you got this, new-booking alerts will reach you."
+  );
+  return res.status(result.ok ? 200 : 502).json(result);
 });
 
-// Start server
+// Load a starter pack template from /packs so the admin UI can prefill it.
+app.get("/api/pack-template/:name", (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
+  const name = String(req.params.name).replace(/[^a-z0-9_-]/gi, "");
+  const file = path.join(__dirname, "..", "packs", `${name}.json`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: "not_found" });
+  try {
+    res.json({ ok: true, pack: JSON.parse(fs.readFileSync(file, "utf8")) });
+  } catch {
+    res.status(500).json({ error: "bad_pack_json" });
+  }
+});
+
+// List businesses.
+app.get("/api/businesses", async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
+    const list = await prisma.business.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        industry: true,
+        ownerEmail: true,
+        createdAt: true,
+        _count: { select: { leads: true } },
+      },
+    });
+    res.json({ ok: true, businesses: list });
+  } catch (err) {
+    console.error("GET /api/businesses", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// Leads for one business.
+app.get("/api/leads/:slug", async (req, res) => {
+  try {
+    if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
+    const business = await prisma.business.findUnique({
+      where: { slug: req.params.slug },
+    });
+    if (!business) return res.status(404).json({ error: "not_found" });
+
+    const leads = await prisma.lead.findMany({
+      where: { businessId: business.id },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    res.json({ ok: true, leads });
+  } catch (err) {
+    console.error("GET /api/leads", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Public chat API
+// ---------------------------------------------------------------------------
+
+// What the chat page needs to render itself (branding + greeting only).
+app.get("/api/pack/:slug", async (req, res) => {
+  try {
+    const business = await prisma.business.findUnique({
+      where: { slug: req.params.slug },
+    });
+    if (!business || !business.active) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    const pack = parsePack(business);
+    res.json({
+      ok: true,
+      name: business.name,
+      branding: pack.branding || {},
+      business: {
+        phone: (pack.business && pack.business.phone) || null,
+        address: (pack.business && pack.business.address) || null,
+      },
+      suggestions: buildSuggestions(pack),
+    });
+  } catch (err) {
+    console.error("GET /api/pack", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+function buildSuggestions(pack) {
+  const s = ["Hours", "Prices"];
+  if (pack.business && pack.business.address) s.push("Where are you?");
+  if (pack.booking && pack.booking.enabled !== false) s.push("Book an appointment");
+  return s;
+}
+
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { slug, message } = req.body;
+    const sessionId = String(req.body.sessionId || "").slice(0, 64) || "anon";
+
+    if (!slug || typeof message !== "string") {
+      return res.status(400).json({ error: "slug_and_message_required" });
+    }
+    if (message.length > 1000) {
+      return res.status(400).json({ error: "message_too_long" });
+    }
+
+    const business = await prisma.business.findUnique({ where: { slug } });
+    if (!business || !business.active) {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    const pack = parsePack(business);
+    const state = getSession(`${slug}:${sessionId}`);
+    const result = respond(pack, state, message);
+
+    // Persist the booking request as a lead.
+    let leadId = null;
+    if (result.lead) {
+      const lead = await prisma.lead.create({
+        data: {
+          businessId: business.id,
+          name: result.lead.name || null,
+          phone: result.lead.phone || null,
+          service: result.lead.service || null,
+          preferredTime: result.lead.preferredTime || null,
+          notes: result.lead.notes || null,
+          sessionId,
+        },
+      });
+      leadId = lead.id;
+      console.log(
+        `📥 New lead for ${business.name}: ${lead.name} — ${lead.service} — ${lead.phone}`
+      );
+
+      // Fire notifications without making the customer wait on Twilio.
+      notifyNewLead({ business, pack, lead }).catch((e) =>
+        console.error("notify", e)
+      );
+    }
+
+    // Log the exchange (best effort; never block the reply).
+    prisma.chatLog
+      .createMany({
+        data: [
+          { businessId: business.id, sessionId, role: "user", text: message, intent: result.intent },
+          { businessId: business.id, sessionId, role: "bot", text: result.reply, intent: result.intent },
+        ],
+      })
+      .catch((e) => console.error("chatlog", e));
+
+    res.json({ ok: true, reply: result.reply, intent: result.intent, leadId });
+  } catch (err) {
+    console.error("POST /api/chat", err);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+
+if (!process.env.ADMIN_KEY) {
+  console.warn("⚠️  ADMIN_KEY is not set in .env — admin endpoints will reject everything.");
+}
+
+console.log(
+  smsConfigured
+    ? "📱 SMS alerts: ON (Twilio configured)"
+    : "📱 SMS alerts: OFF — add Twilio keys to .env to text shops on new bookings."
+);
+
+const packsDir = path.join(__dirname, "..", "packs");
+if (fs.existsSync(packsDir)) {
+  const available = fs
+    .readdirSync(packsDir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.replace(/\.json$/, ""));
+  if (available.length) console.log(`📦 Packs available: ${available.join(", ")}`);
+}
+
 app.listen(PORT, () => {
-  console.log(`✅ Chatbot SaaS Starter listening on http://localhost:${PORT}`);
-  console.log(`🔧 Admin UI: http://localhost:${PORT}/admin.html`);
+  console.log(`✅ Chatbot SaaS listening on http://localhost:${PORT}`);
+  console.log(`🔧 Admin UI:  http://localhost:${PORT}/admin.html`);
 });

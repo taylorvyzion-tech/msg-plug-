@@ -1,0 +1,250 @@
+{
+  "bot_id": "salon_v1",
+  "version": 1,
+  "business": {
+    "name": "Crown & Co. Hair Studio",
+    "industry": "hair salon",
+    "phone": "(813) 555-0188",
+    "address": "3310 Big Bend Rd, Riverview, FL 33578",
+    "booking_url": "",
+    "timezone": "America/New_York",
+    "parking": "Shared plaza lot, free."
+  },
+  "branding": {
+    "greeting": "Hey! Welcome to Crown & Co. I can quote services, check availability, or start a booking for you. What are you looking for?",
+    "avatar_emoji": "✂️",
+    "background": "#0B0B0B",
+    "surface": "#181818",
+    "accent": "#C9A227",
+    "text": "#FFFFFF",
+    "bot_name": "Crown Assistant"
+  },
+  "hours": {
+    "mon": "Closed",
+    "tue": "10:00a – 7:00p",
+    "wed": "10:00a – 7:00p",
+    "thu": "10:00a – 8:00p",
+    "fri": "9:00a – 8:00p",
+    "sat": "9:00a – 6:00p",
+    "sun": "Closed"
+  },
+  "services": [
+    {
+      "name": "Women's Cut & Style",
+      "price": 65,
+      "duration_min": 60,
+      "aliases": [
+        "cut",
+        "haircut",
+        "trim",
+        "layers",
+        "cut and style"
+      ]
+    },
+    {
+      "name": "Blowout",
+      "price": 45,
+      "duration_min": 45,
+      "aliases": [
+        "blowout",
+        "blow dry",
+        "style only"
+      ]
+    },
+    {
+      "name": "Silk Press",
+      "price": 85,
+      "duration_min": 90,
+      "aliases": [
+        "silk press",
+        "press"
+      ]
+    },
+    {
+      "name": "Root Touch-Up",
+      "price": 75,
+      "duration_min": 75,
+      "aliases": [
+        "roots",
+        "root touch up",
+        "gray coverage"
+      ]
+    },
+    {
+      "name": "Full Color",
+      "price": 130,
+      "duration_min": 150,
+      "aliases": [
+        "color",
+        "dye",
+        "all over color"
+      ]
+    },
+    {
+      "name": "Balayage",
+      "price": 195,
+      "duration_min": 180,
+      "aliases": [
+        "balayage",
+        "highlights",
+        "babylights",
+        "ombre"
+      ]
+    },
+    {
+      "name": "Deep Conditioning Treatment",
+      "price": 35,
+      "duration_min": 30,
+      "aliases": [
+        "treatment",
+        "conditioning",
+        "mask",
+        "olaplex"
+      ]
+    },
+    {
+      "name": "Knotless Braids",
+      "price": 180,
+      "duration_min": 300,
+      "aliases": [
+        "braids",
+        "knotless",
+        "box braids"
+      ]
+    },
+    {
+      "name": "Sew-In Install",
+      "price": 160,
+      "duration_min": 210,
+      "aliases": [
+        "sew in",
+        "sew-in",
+        "weave",
+        "install",
+        "extensions"
+      ]
+    },
+    {
+      "name": "Bridal / Event Styling",
+      "price": 150,
+      "duration_min": 90,
+      "aliases": [
+        "bridal",
+        "wedding",
+        "event",
+        "updo",
+        "prom"
+      ]
+    }
+  ],
+  "stylists": [
+    {
+      "name": "Nia",
+      "specialty": "Color, balayage and blondes",
+      "days": [
+        "tue",
+        "wed",
+        "thu",
+        "fri"
+      ]
+    },
+    {
+      "name": "Jasmine",
+      "specialty": "Silk press, natural hair and treatments",
+      "days": [
+        "wed",
+        "thu",
+        "fri",
+        "sat"
+      ]
+    },
+    {
+      "name": "Ray",
+      "specialty": "Braids, sew-ins and protective styles",
+      "days": [
+        "tue",
+        "thu",
+        "sat"
+      ]
+    }
+  ],
+  "policies": {
+    "walkins": "We're appointment-only. Same-day openings happen, so it's worth asking.",
+    "cancellation": "Cancel or reschedule at least 24 hours ahead. Inside 24 hours is a 50% fee.",
+    "late": "After 20 minutes late we may have to reschedule or shorten the service.",
+    "deposit": "Color, braids and sew-ins require a $50 deposit that goes toward your total.",
+    "payment": "Cash, card, Apple Pay, Cash App and Zelle. Cash tips appreciated.",
+    "kids": "Kids' cuts are $35 for 10 and under.",
+    "consultation": "Free 15-minute consultation for color and extensions before you commit."
+  },
+  "faqs": [
+    {
+      "q": "Do I need a consultation for color?",
+      "a": "For a big change — going blonde, a full correction, or extensions — yes, and it's free. For a root touch-up you can book straight in.",
+      "keywords": [
+        "consultation",
+        "consult",
+        "color change",
+        "correction"
+      ]
+    },
+    {
+      "q": "How long does balayage take?",
+      "a": "Plan on about 3 hours, longer if your hair is very long or dark. We'll give you a firm quote at the consultation.",
+      "keywords": [
+        "how long",
+        "balayage take",
+        "time for color"
+      ]
+    },
+    {
+      "q": "Do you do natural hair?",
+      "a": "Yes — silk presses, treatments, braids, sew-ins and protective styles. Jasmine and Ray specialize in it.",
+      "keywords": [
+        "natural hair",
+        "4c",
+        "curly",
+        "protective",
+        "relaxer"
+      ]
+    },
+    {
+      "q": "Should I come with my hair washed?",
+      "a": "Come with hair dry and detangled, no heavy product. We'll wash it here as part of your service.",
+      "keywords": [
+        "wash",
+        "washed",
+        "dirty hair",
+        "prep",
+        "before appointment"
+      ]
+    },
+    {
+      "q": "Do you take walk-ins?",
+      "a": "We're appointment-only, but same-day openings pop up. Tell me what you want and I'll get you on the list.",
+      "keywords": [
+        "walk in",
+        "walkin",
+        "walk-in",
+        "same day"
+      ]
+    }
+  ],
+  "booking": {
+    "enabled": true,
+    "ask_order": [
+      "service",
+      "name",
+      "phone",
+      "time"
+    ],
+    "confirm": "Got it — you're on the request list. A stylist will text you to confirm your time and any deposit.",
+    "handoff_note": "For bridal or a big color change, calling the salon directly is fastest."
+  },
+  "notifications": {
+    "sms_to": "",
+    "confirm_customer": false,
+    "webhook_url": ""
+  },
+  "fallback": "I'm not sure I caught that. I can help with services and pricing, hours, our stylists, policies, or booking. What do you need?"
+}

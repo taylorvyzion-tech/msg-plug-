@@ -1,50 +1,232 @@
-admin.html
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MSGPlug Admin</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 40px auto; }
-    input, textarea { width: 100%; padding: 8px; margin: 6px 0; }
-    button { padding: 10px 14px; }
-    code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+    :root {
+      --bg: #0B0B0B;
+      --surface: #161616;
+      --line: #262626;
+      --gold: #C9A227;
+      --text: #FFFFFF;
+      --muted: #9A9A9A;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: .5px; }
+    .sub { color: var(--muted); margin: 0 0 28px; font-size: .92rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h2 { font-size: 1rem; margin: 0 0 14px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+    label { display: block; font-size: .8rem; color: var(--muted); margin: 12px 0 4px; }
+    input, textarea, select {
+      width: 100%; padding: 10px 12px;
+      background: #0F0F0F; color: var(--text);
+      border: 1px solid var(--line); border-radius: 8px;
+      font: inherit; font-size: .92rem;
+    }
+    textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--gold); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row > * { flex: 1 1 200px; }
+    button {
+      background: var(--gold); color: #000; border: 0;
+      padding: 11px 18px; border-radius: 8px;
+      font: inherit; font-weight: 600; cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(201,162,39,.25); }
+    button.ghost { background: transparent; color: var(--gold); border: 1px solid var(--line); font-weight: 500; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    pre {
+      background: #0F0F0F; border: 1px solid var(--line); border-radius: 8px;
+      padding: 12px; overflow-x: auto; font-size: .8rem; color: var(--muted);
+      white-space: pre-wrap; word-break: break-word;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; font-size: .76rem; text-transform: uppercase; letter-spacing: .6px; }
+    a { color: var(--gold); }
+    .note { font-size: .8rem; color: var(--muted); margin-top: 8px; }
+    .empty { color: var(--muted); font-size: .88rem; padding: 8px 0; }
   </style>
 </head>
 <body>
-  <h2>Chatbot SaaS – Admin</h2>
-  <p>Use your Admin Key from <code>.env</code>.</p>
-  <label>Admin Key</label>
-  <input id="adminKey" value="msgplug_secret_0921XK8" placeholder="QB2G-strong-key">
-  <label>Business Name</label>
-  <input id="name" placeholder="Fresh Fade Studio">
-  <label>Slug</label>
-  <input id="slug" placeholder="fresh-fade-studio">
-  <label>Owner Email</label>
-  <input id="ownerEmail" placeholder="owner@example.com">
-  <label>Pack JSON</label>
-  <textarea id="pack" rows="10" placeholder='{"bot_id":"barber_v1", ... }'></textarea>
-  <button onclick="create()">Create Business</button>
-  <pre id="out"></pre>
+<div class="wrap">
+  <h1>MSGPlug Admin</h1>
+  <p class="sub">Spin up a chatbot for a shop in about 30 seconds.</p>
 
-  <script>
-    async function create(){
-      const body = {
-        adminKey: document.getElementById('adminKey').value,
-        name: document.getElementById('name').value,
-        slug: document.getElementById('slug').value,
-        ownerEmail: document.getElementById('ownerEmail').value,
-        pack: JSON.parse(document.getElementById('pack').value || "{}")
-      };
-      const res = await fetch('/api/business', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      document.getElementById('out').textContent = JSON.stringify(json, null, 2);
-      if (json.ok) window.location.href = '/c/' + body.slug;
+  <div class="card">
+    <h2>Admin key</h2>
+    <input id="adminKey" type="password" placeholder="Paste the ADMIN_KEY from your .env">
+    <p class="note">Kept in this browser tab only. Never saved into the page source.</p>
+  </div>
+
+  <div class="card">
+    <h2>Create / update a shop</h2>
+    <div class="row">
+      <div>
+        <label>Business name</label>
+        <input id="name" placeholder="Fresh Fade Studio">
+      </div>
+      <div>
+        <label>Slug (the chat URL)</label>
+        <input id="slug" placeholder="fresh-fade-studio">
+      </div>
+    </div>
+    <label>Owner email</label>
+    <input id="ownerEmail" placeholder="owner@example.com">
+
+    <label>Start from a template</label>
+    <div class="row">
+      <select id="template">
+        <option value="barber">Barbershop</option>
+        <option value="salon">Hair salon / stylist</option>
+      </select>
+      <button class="ghost" type="button" onclick="loadTemplate()">Load template</button>
+    </div>
+
+    <label>Content pack (JSON)</label>
+    <textarea id="pack" rows="14" placeholder='Click "Load template" to start, then edit the shop&#39;s real hours, prices and info.'></textarea>
+
+    <div class="actions">
+      <button type="button" onclick="create()">Create / update shop</button>
+      <button class="ghost" type="button" onclick="refresh()">Refresh list</button>
+    </div>
+    <pre id="out" hidden></pre>
+  </div>
+
+  <div class="card">
+    <h2>Shops</h2>
+    <div id="list"><p class="empty">Enter your admin key and hit Refresh.</p></div>
+  </div>
+
+  <div class="card">
+    <h2>Leads</h2>
+    <div class="row">
+      <input id="leadSlug" placeholder="fresh-fade-studio">
+      <button class="ghost" type="button" onclick="loadLeads()">Load leads</button>
+    </div>
+    <div id="leads"><p class="empty">Pick a shop slug to see its booking requests.</p></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const key = () => $('adminKey').value.trim();
+
+  function show(obj) {
+    const out = $('out');
+    out.hidden = false;
+    out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  async function api(path, options = {}) {
+    if (!key()) { show('Enter your admin key first.'); return null; }
+    const res = await fetch(path, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key(), ...(options.headers || {}) }
+    });
+    const json = await res.json().catch(() => ({ error: 'bad_response' }));
+    if (!res.ok) { show(json); return null; }
+    return json;
+  }
+
+  async function loadTemplate() {
+    const json = await api('/api/pack-template/' + $('template').value);
+    if (!json) return;
+    $('pack').value = JSON.stringify(json.pack, null, 2);
+    const b = json.pack.business || {};
+    if (!$('name').value && b.name) $('name').value = b.name;
+    if (!$('slug').value && b.name) {
+      $('slug').value = b.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     }
-  </script>
+    show('Template loaded. Edit the hours, prices and contact info for the real shop, then create it.');
+  }
+
+  async function create() {
+    let pack;
+    try {
+      pack = JSON.parse($('pack').value || '{}');
+    } catch (e) {
+      show('Pack JSON is invalid: ' + e.message);
+      return;
+    }
+    const json = await api('/api/business', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: $('name').value.trim(),
+        slug: $('slug').value.trim(),
+        ownerEmail: $('ownerEmail').value.trim(),
+        pack
+      })
+    });
+    if (!json) return;
+    show(json);
+    $('leadSlug').value = json.slug;
+    refresh();
+  }
+
+  async function refresh() {
+    const json = await api('/api/businesses');
+    if (!json) return;
+    if (!json.businesses.length) {
+      $('list').innerHTML = '<p class="empty">No shops yet.</p>';
+      return;
+    }
+    $('list').innerHTML = `
+      <table>
+        <tr><th>Name</th><th>Chat link</th><th>Industry</th><th>Leads</th></tr>
+        ${json.businesses.map(b => `
+          <tr>
+            <td>${esc(b.name)}</td>
+            <td><a href="/c/${esc(b.slug)}" target="_blank">/c/${esc(b.slug)}</a></td>
+            <td>${esc(b.industry || '—')}</td>
+            <td>${b._count.leads}</td>
+          </tr>`).join('')}
+      </table>`;
+  }
+
+  async function loadLeads() {
+    const slug = $('leadSlug').value.trim();
+    if (!slug) return;
+    const json = await api('/api/leads/' + encodeURIComponent(slug));
+    if (!json) return;
+    if (!json.leads.length) {
+      $('leads').innerHTML = '<p class="empty">No leads yet for that shop.</p>';
+      return;
+    }
+    $('leads').innerHTML = `
+      <table>
+        <tr><th>When</th><th>Name</th><th>Phone</th><th>Service</th><th>Preferred</th></tr>
+        ${json.leads.map(l => `
+          <tr>
+            <td>${new Date(l.createdAt).toLocaleString()}</td>
+            <td>${esc(l.name)}</td>
+            <td>${esc(l.phone)}</td>
+            <td>${esc(l.service)}</td>
+            <td>${esc(l.preferredTime)}</td>
+          </tr>`).join('')}
+      </table>`;
+  }
+</script>
 </body>
 </html>

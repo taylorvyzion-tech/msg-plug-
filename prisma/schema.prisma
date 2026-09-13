@@ -1,17 +1,28 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
+
 model Business {
-  id        Int      @id @default(autoincrement())
-  name      String
-  industry  String?
-  chatbots  Chatbot[]
-  createdAt DateTime @default(now())
+  id         Int       @id @default(autoincrement())
+  name       String
+  slug       String    @unique
+  ownerEmail String?
+  phone      String?
+  industry   String?
+  // SQLite has no native JSON column in Prisma, so the content pack is
+  // stored as a JSON string and parsed at runtime.
+  packJson   String?
+  active     Boolean   @default(true)
+  chatbots   Chatbot[]
+  leads      Lead[]
+  chatLogs   ChatLog[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Chatbot {
@@ -19,6 +30,37 @@ model Chatbot {
   name        String
   description String?
   businessId  Int
-  business    Business @relation(fields: [businessId], references: [id])
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+}
+
+// A captured booking request / lead from the chat widget.
+model Lead {
+  id            Int      @id @default(autoincrement())
+  businessId    Int
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name          String?
+  phone         String?
+  service       String?
+  preferredTime String?
+  notes         String?
+  status        String   @default("new") // new | contacted | booked | closed
+  sessionId     String?
+  createdAt     DateTime @default(now())
+
+  @@index([businessId, status])
+}
+
+// Every message in and out, so you can see what customers actually ask.
+model ChatLog {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sessionId  String
+  role       String // "user" | "bot"
+  text       String
+  intent     String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, sessionId])
 }

@@ -1,1 +1,256 @@
-{}
+{
+  "bot_id": "barber_v1",
+  "version": 1,
+  "business": {
+    "name": "Fresh Fade Studio",
+    "industry": "barbershop",
+    "phone": "(813) 555-0142",
+    "address": "1204 Apollo Beach Blvd, Apollo Beach, FL 33572",
+    "booking_url": "",
+    "timezone": "America/New_York",
+    "parking": "Free lot in front of the shop."
+  },
+  "branding": {
+    "greeting": "Welcome to Fresh Fade Studio. I can check hours, quote prices, or get you booked. What do you need?",
+    "avatar_emoji": "💈",
+    "background": "#0B0B0B",
+    "surface": "#161616",
+    "accent": "#C9A227",
+    "text": "#FFFFFF",
+    "bot_name": "Fresh Fade Assistant"
+  },
+  "hours": {
+    "mon": "Closed",
+    "tue": "9:00a – 7:00p",
+    "wed": "9:00a – 7:00p",
+    "thu": "9:00a – 7:00p",
+    "fri": "9:00a – 8:00p",
+    "sat": "8:00a – 6:00p",
+    "sun": "10:00a – 3:00p"
+  },
+  "services": [
+    {
+      "name": "Haircut",
+      "price": 25,
+      "duration_min": 30,
+      "aliases": [
+        "cut",
+        "fade",
+        "taper",
+        "haircut",
+        "lineup cut",
+        "regular cut"
+      ]
+    },
+    {
+      "name": "Skin Fade",
+      "price": 30,
+      "duration_min": 40,
+      "aliases": [
+        "bald fade",
+        "skin fade",
+        "zero fade"
+      ]
+    },
+    {
+      "name": "Beard Trim",
+      "price": 15,
+      "duration_min": 20,
+      "aliases": [
+        "beard",
+        "beard trim",
+        "shape up beard"
+      ]
+    },
+    {
+      "name": "Cut + Beard",
+      "price": 35,
+      "duration_min": 45,
+      "aliases": [
+        "full",
+        "full service",
+        "cut and beard",
+        "combo"
+      ]
+    },
+    {
+      "name": "Line Up / Edge Up",
+      "price": 12,
+      "duration_min": 15,
+      "aliases": [
+        "lineup",
+        "line up",
+        "edge up",
+        "shape up"
+      ]
+    },
+    {
+      "name": "Hot Towel Shave",
+      "price": 30,
+      "duration_min": 35,
+      "aliases": [
+        "shave",
+        "straight razor",
+        "hot towel"
+      ]
+    },
+    {
+      "name": "Kids Cut (12 & under)",
+      "price": 20,
+      "duration_min": 30,
+      "aliases": [
+        "kid",
+        "kids",
+        "child",
+        "children",
+        "son"
+      ]
+    },
+    {
+      "name": "Senior Cut (65+)",
+      "price": 20,
+      "duration_min": 30,
+      "aliases": [
+        "senior",
+        "elderly"
+      ]
+    },
+    {
+      "name": "Design / Hair Art",
+      "price": 10,
+      "duration_min": 15,
+      "aliases": [
+        "design",
+        "part",
+        "hair art",
+        "hard part"
+      ]
+    }
+  ],
+  "stylists": [
+    {
+      "name": "Marcus",
+      "specialty": "Fades and beard work",
+      "days": [
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat"
+      ]
+    },
+    {
+      "name": "Dre",
+      "specialty": "Kids cuts and designs",
+      "days": [
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ]
+    },
+    {
+      "name": "Tone",
+      "specialty": "Classic cuts and hot towel shaves",
+      "days": [
+        "tue",
+        "fri",
+        "sat"
+      ]
+    }
+  ],
+  "policies": {
+    "walkins": "Walk-ins welcome, but appointments get priority. Saturdays fill up fast.",
+    "cancellation": "Free to cancel or reschedule up to 2 hours before your appointment.",
+    "late": "More than 15 minutes late and we may need to reschedule you.",
+    "deposit": "No deposit for standard cuts. Group bookings of 3 or more need a $20 deposit.",
+    "payment": "Cash, card, Cash App, Apple Pay and Zelle.",
+    "kids": "Kids 12 and under are $20. We're patient with first-timers.",
+    "guarantee": "Not happy with your cut? Come back within 7 days and we'll fix it free."
+  },
+  "faqs": [
+    {
+      "q": "Do you take walk-ins?",
+      "a": "Yes, walk-ins are welcome. Appointments get priority though, and Saturdays fill up fast, so booking ahead is safer.",
+      "keywords": [
+        "walk in",
+        "walkin",
+        "walk-in",
+        "without appointment",
+        "just show up"
+      ]
+    },
+    {
+      "q": "How long is the wait?",
+      "a": "Walk-in waits are usually 15–30 minutes on weekdays and can hit an hour on Saturdays. Booking skips the line.",
+      "keywords": [
+        "wait",
+        "how long",
+        "busy",
+        "line"
+      ]
+    },
+    {
+      "q": "Do you cut women's hair?",
+      "a": "We do tapers, fades, and pixie shapes for anyone. For color, long-layer cuts or styling, our salon side handles that.",
+      "keywords": [
+        "women",
+        "woman",
+        "female",
+        "her hair",
+        "girl"
+      ]
+    },
+    {
+      "q": "Do you sell products?",
+      "a": "Yes — pomades, beard oil, brushes and durags in-shop. Most items run $12–$28.",
+      "keywords": [
+        "product",
+        "pomade",
+        "beard oil",
+        "wax",
+        "durag",
+        "sell"
+      ]
+    },
+    {
+      "q": "Is there parking?",
+      "a": "Free lot right in front of the shop, plus street parking on the side.",
+      "keywords": [
+        "parking",
+        "park",
+        "lot"
+      ]
+    },
+    {
+      "q": "Do you take kids?",
+      "a": "Absolutely. Kids 12 and under are $20, and Dre is great with first-timers.",
+      "keywords": [
+        "kid",
+        "kids",
+        "child",
+        "son",
+        "daughter",
+        "toddler"
+      ]
+    }
+  ],
+  "booking": {
+    "enabled": true,
+    "ask_order": [
+      "service",
+      "name",
+      "phone",
+      "time"
+    ],
+    "confirm": "You're on the list. Someone from the shop will text you shortly to lock in the exact time.",
+    "handoff_note": "If you need it sooner, call the shop directly."
+  },
+  "notifications": {
+    "sms_to": "",
+    "confirm_customer": false,
+    "webhook_url": ""
+  },
+  "fallback": "I didn't catch that. I can help with hours, prices, services, our location, or booking an appointment. Which one?"
+}

@@ -1,0 +1,236 @@
+{
+  "bot_id": "hvac_v1",
+  "version": 1,
+  "_replace_before_live": [
+    "business.name, phone, address, license — use the client's REAL details, never invented ones",
+    "hours, services and prices — confirm every number with the client in writing",
+    "service_area.towns — the towns they actually drive to",
+    "policies.warranty / faqs — only claims the client stands behind"
+  ],
+  "business": {
+    "name": "Gulf Coast Air & Heat",
+    "industry": "HVAC contractor",
+    "phone": "(813) 555-0164",
+    "address": "Ruskin, FL",
+    "license": "CAC000000",
+    "booking_url": "",
+    "timezone": "America/New_York"
+  },
+  "branding": {
+    "greeting": "Gulf Coast Air & Heat. I can check pricing, confirm we cover your area, or get a tech scheduled. What's going on?",
+    "avatar_emoji": "❄️",
+    "background": "#0B0B0B",
+    "surface": "#161616",
+    "accent": "#00C2FF",
+    "text": "#FFFFFF",
+    "bot_name": "Gulf Coast Assistant"
+  },
+  "hours": {
+    "mon": "7:00a – 6:00p",
+    "tue": "7:00a – 6:00p",
+    "wed": "7:00a – 6:00p",
+    "thu": "7:00a – 6:00p",
+    "fri": "7:00a – 6:00p",
+    "sat": "8:00a – 2:00p",
+    "sun": "Emergency calls only"
+  },
+  "service_area": {
+    "towns": [
+      "Ruskin", "Wimauma", "Sun City Center", "Apollo Beach", "Riverview",
+      "Gibsonton", "Lithia", "Balm", "Brandon", "Valrico", "Bloomingdale",
+      "Fishhawk", "Progress Village"
+    ],
+    "radius_note": "We cover South Hillsborough County and the south side of Tampa.",
+    "yes_reply": "Yes — {town} is right in our service area. We're out that way most days.",
+    "outside_reply": "Outside those areas, call the office — depending on the job we can sometimes make it work."
+  },
+  "emergency": {
+    "enabled": true,
+    "rules": [
+      {
+        "priority": "safety",
+        "intent": "safety_gas",
+        "keywords": ["smell gas", "gas leak", "smells like gas", "gas smell"],
+        "reply": "Leave the building now and call 911 or your gas utility from outside. Don't flip any switches or plug anything in on your way out. Once you're safe and they've cleared it, call us at {phone} and we'll handle the system."
+      },
+      {
+        "priority": "safety",
+        "intent": "safety_electrical",
+        "keywords": ["sparking", "smoke", "burning smell", "smells like burning", "on fire", "electrical fire"],
+        "reply": "Shut the system off at the breaker if you can do it safely, and call 911 if you see smoke or flame. Then call us at {phone} — don't run the unit again until a tech has looked at it."
+      },
+      {
+        "intent": "emergency",
+        "keywords": [
+          "no ac", "no air", "not cooling", "ac is out", "ac went out", "no cold air",
+          "no heat", "not heating", "heat is out", "emergency", "water everywhere",
+          "leaking water", "flooding", "frozen", "ac died", "stopped working"
+        ],
+        "reply": "That one needs a tech, not a form. Call us right now at {phone} — we keep same-day slots open for no-cool and no-heat calls, and we run emergency service after hours.\n\nIf you'd rather I just take your info, say \"schedule service\" and I'll grab it."
+      }
+    ]
+  },
+  "services": [
+    {
+      "name": "Diagnostic / Service Call",
+      "price": "$89",
+      "duration_min": 60,
+      "aliases": ["diagnostic", "service call", "come look", "check it out", "trip charge", "service fee"]
+    },
+    {
+      "name": "AC Repair",
+      "price": "Varies — $89 diagnostic, then quoted before work starts",
+      "aliases": ["ac repair", "fix my ac", "repair", "not cooling", "broken ac"]
+    },
+    {
+      "name": "AC Replacement / New System",
+      "price": "Free estimate",
+      "aliases": ["new ac", "new system", "replace", "replacement", "new unit", "install", "new air conditioner"]
+    },
+    {
+      "name": "Heat Pump Service",
+      "price": "$89 diagnostic",
+      "aliases": ["heat pump", "heating", "furnace", "heat"]
+    },
+    {
+      "name": "Maintenance Tune-Up",
+      "price": "$129",
+      "duration_min": 75,
+      "aliases": ["tune up", "tuneup", "maintenance", "service my ac", "checkup", "cleaning"]
+    },
+    {
+      "name": "Maintenance Plan",
+      "price": "$199/year (two visits)",
+      "aliases": ["maintenance plan", "service plan", "membership", "yearly plan", "contract"]
+    },
+    {
+      "name": "Duct Cleaning",
+      "price": "Starting at $399",
+      "aliases": ["duct cleaning", "ducts", "air ducts", "vents"]
+    },
+    {
+      "name": "Duct Repair / Replacement",
+      "price": "Free estimate",
+      "aliases": ["duct repair", "ductwork", "leaky ducts"]
+    },
+    {
+      "name": "Mini-Split Install",
+      "price": "Free estimate",
+      "aliases": ["mini split", "minisplit", "ductless", "garage ac"]
+    },
+    {
+      "name": "Thermostat Install",
+      "price": "Starting at $189",
+      "aliases": ["thermostat", "nest", "smart thermostat"]
+    },
+    {
+      "name": "Indoor Air Quality",
+      "price": "Free estimate",
+      "aliases": ["air quality", "uv light", "air purifier", "filtration", "dehumidifier"]
+    }
+  ],
+  "policies": {
+    "estimates": "Estimates on new systems and ductwork are free. Repairs start with an $89 diagnostic so a tech can tell you exactly what's wrong before you spend anything.",
+    "diagnostic": "The diagnostic is $89 and gets credited toward the repair if you move forward with us the same day.",
+    "payment": "Cash, check, all major cards, and Zelle. Payment is due when the work is done.",
+    "financing": "Financing is available on new systems with approved credit — the office can walk you through the options.",
+    "warranty": "Our workmanship is warrantied for one year. Equipment carries the manufacturer's warranty, which varies by unit.",
+    "afterhours": "After-hours and weekend emergency calls carry an additional fee. The dispatcher will tell you the amount before anyone is sent.",
+    "licensed": "We're a licensed and insured Florida HVAC contractor. License number is on every estimate and invoice.",
+    "arrival": "We give a two-hour arrival window and the tech calls when he's on the way."
+  },
+  "faqs": [
+    {
+      "q": "How much does a new AC cost?",
+      "a": "It depends on the size of your home, the efficiency you want, and the shape of your ductwork — so we won't guess at a number. Estimates on new systems are free and we'll put it in writing.",
+      "keywords": ["how much is a new", "cost of a new", "new system cost", "price for a new ac", "replace my ac cost"]
+    },
+    {
+      "q": "How soon can you get here?",
+      "a": "Most no-cool calls get same-day or next-morning service. Tune-ups and estimates usually go out within a few days.",
+      "keywords": ["how soon", "how fast", "when can you", "today", "same day", "how long until", "availability"]
+    },
+    {
+      "q": "Do you charge just to come out?",
+      "a": "Repairs carry an $89 diagnostic, credited toward the repair if you go ahead with us the same day. Estimates on new systems and ductwork are free.",
+      "keywords": ["charge to come out", "free to come", "trip fee", "just to look", "cost to come out"]
+    },
+    {
+      "q": "My power bill is really high — can you help?",
+      "a": "Usually yes. High bills normally trace back to a low refrigerant charge, a dirty coil, leaking ducts, or a system that's simply undersized. A tune-up catches most of it.",
+      "keywords": ["power bill", "electric bill", "high bill", "energy bill", "costing me"]
+    },
+    {
+      "q": "How often should I service my AC?",
+      "a": "Once a year at minimum in Florida, twice is better — the units run nearly year-round down here. Most breakdowns we see were preventable.",
+      "keywords": ["how often", "how many times a year", "should i service", "maintenance schedule"]
+    },
+    {
+      "q": "Do you work on all brands?",
+      "a": "Yes — Carrier, Trane, Rheem, Goodman, Lennox, American Standard and the rest. If it blows cold air we work on it.",
+      "keywords": ["brands", "carrier", "trane", "rheem", "goodman", "lennox", "what brands", "my brand"]
+    },
+    {
+      "q": "Do you offer financing?",
+      "a": "Yes, on new systems with approved credit. The office can go over terms and monthly numbers with you.",
+      "keywords": ["financing", "finance", "payment plan", "monthly payments", "pay over time"]
+    },
+    {
+      "q": "Are you licensed and insured?",
+      "a": "Yes — licensed and insured in Florida, and the license number appears on every estimate and invoice we send.",
+      "keywords": ["licensed", "insured", "license", "insurance", "bonded", "certified"]
+    }
+  ],
+  "lead_flow": {
+    "enabled": true,
+    "trigger_words": [
+      "estimate", "quote", "schedule", "service call", "come out", "come look",
+      "send someone", "get someone out", "need someone", "appointment",
+      "set up service", "book", "schedule service"
+    ],
+    "steps": [
+      {
+        "key": "job",
+        "label": "Job",
+        "type": "text",
+        "field": "service",
+        "prompt": "Let's get you on the schedule. What's going on? (For example: AC not cooling, need a tune-up, want a quote on a new system)"
+      },
+      {
+        "key": "name",
+        "label": "Name",
+        "type": "name",
+        "field": "name",
+        "prompt": "Got it. What's your name?"
+      },
+      {
+        "key": "phone",
+        "label": "Phone",
+        "type": "phone",
+        "field": "phone",
+        "prompt": "Best number for the tech to reach you?"
+      },
+      {
+        "key": "city",
+        "label": "City",
+        "type": "text",
+        "prompt": "What city are you in?"
+      },
+      {
+        "key": "timing",
+        "label": "Timing",
+        "type": "text",
+        "field": "preferredTime",
+        "prompt": "How soon do you need someone? (Today, this week, or just getting prices)"
+      }
+    ],
+    "confirm": "You're in. The office will call you to lock in a window — usually within the hour during business hours.",
+    "handoff_note": "If it can't wait, call us directly at {phone}."
+  },
+  "notifications": {
+    "sms_to": "",
+    "confirm_customer": false,
+    "webhook_url": ""
+  },
+  "fallback": "I didn't catch that. I can help with pricing, our service area, how soon we can get out, or getting a tech scheduled. What do you need?"
+}

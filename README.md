@@ -96,6 +96,47 @@ Optional attributes: `data-emoji`, `data-position="left"`, `data-host`.
 
 ---
 
+## Deploying (Render)
+
+`render.yaml` is a blueprint — Render reads it and configures everything.
+
+1. Push to GitHub (already done if you followed setup)
+2. Go to https://render.com → sign in with GitHub
+3. **New → Blueprint** → pick the `msg-plug-` repo → **Apply**
+4. Wait for the first deploy (3–5 min)
+5. **Dashboard → your service → Environment** → copy the generated `ADMIN_KEY`
+6. Open `https://your-service.onrender.com/admin.html` and paste that key
+
+Your chat links are then `https://your-service.onrender.com/c/<slug>` — send
+those to prospects.
+
+### Why the disk matters
+
+Render wipes the filesystem on every deploy and restart. Without the mounted
+disk in `render.yaml`, your SQLite database — every client and every captured
+lead — is gone the next time the service redeploys. The blueprint mounts a 1GB
+disk at `/var/data` and points `DATABASE_URL` there.
+
+Migrations run in the **start** command, not the build command, because the
+disk is only mounted at runtime.
+
+### Free plan vs Starter
+
+The blueprint uses `plan: starter` (~$7/month). You can change it to `free`,
+but know the two tradeoffs:
+
+- **No persistent disk on free.** Leads vanish on redeploy.
+- **Free services sleep after 15 minutes idle.** The next visitor waits ~50
+  seconds for a cold start. That's fatal for a demo link you sent a prospect —
+  they'll close the tab before it loads.
+
+For a demo you're sending to prospects, Starter is worth the $7.
+
+### Going to a custom domain
+
+Render → Settings → Custom Domains. Point a subdomain like `chat.yourdomain.com`
+at it so client links don't read `onrender.com`.
+
 ## SMS alerts on new bookings
 
 When a booking completes, the shop gets a text:
@@ -197,11 +238,12 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
   shop still has to text back.
 - **SQLite is single-machine.** Fine for the first handful of shops. Move to
   Postgres before you're running this for real clients on a hosted box.
-- **No rate limiting** on `/api/chat`. Add some before this is public.
+- **Rate limits are per-process.** 20 chat messages and 30 admin requests per
+  IP per minute, held in memory. Fine for one instance; needs Redis if you
+  ever scale out.
 
 ## Roadmap
 
-1. Rate limiting + basic abuse protection ← do this before going public
-2. Per-shop login so owners see their own leads
-3. Real calendar availability
-4. AI fallback for questions the pack doesn't cover
+1. Per-client login so owners see their own leads
+2. Real calendar availability
+3. AI fallback for questions the pack doesn't cover

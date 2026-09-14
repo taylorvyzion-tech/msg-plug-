@@ -14,9 +14,59 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 
+// Behind Render/Fly/nginx, req.ip is the proxy unless we trust one hop.
+// Rate limiting is worthless without this.
+app.set("trust proxy", 1);
+
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "100kb" }));
 app.use(express.static(PUBLIC_DIR));
+
+// ---------------------------------------------------------------------------
+// Rate limiting
+// ---------------------------------------------------------------------------
+// In-memory and per-process, which is fine for a single instance. Move to
+// Redis if this ever runs on more than one.
+
+function makeLimiter({ windowMs, max, message }) {
+  const hits = new Map();
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of hits) if (now > v.reset) hits.delete(k);
+  }, windowMs).unref();
+
+  return function limiter(req, res, next) {
+    const key = req.ip || "unknown";
+    const now = Date.now();
+    let b = hits.get(key);
+    if (!b || now > b.reset) {
+      b = { count: 0, reset: now + windowMs };
+      hits.set(key, b);
+    }
+    b.count++;
+    if (b.count > max) {
+      res.set("Retry-After", Math.ceil((b.reset - now) / 1000));
+      // `reply` is included so the chat widget renders something human
+      // instead of a raw error.
+      return res.status(429).json({ error: "rate_limited", reply: message });
+    }
+    next();
+  };
+}
+
+const chatLimiter = makeLimiter({
+  windowMs: 60_000,
+  max: 20,
+  message: "You're sending messages faster than I can keep up. Give me a minute, or call us directly.",
+});
+
+// Slow down anyone trying admin keys by brute force.
+const adminLimiter = makeLimiter({
+  windowMs: 60_000,
+  max: 30,
+  message: "Too many requests.",
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,7 +139,7 @@ app.get("/c/:slug", (_req, res) => {
 // ---------------------------------------------------------------------------
 
 // Create or update a business from a content pack.
-app.post("/api/business", async (req, res) => {
+app.post("/api/business", adminLimiter, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
 
@@ -153,7 +203,7 @@ app.post("/api/business", async (req, res) => {
 });
 
 // Send yourself a test text to confirm Twilio is wired up correctly.
-app.post("/api/test-sms", async (req, res) => {
+app.post("/api/test-sms", adminLimiter, async (req, res) => {
   if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
   if (!smsConfigured) {
     return res.status(400).json({
@@ -172,7 +222,7 @@ app.post("/api/test-sms", async (req, res) => {
 });
 
 // Load a starter pack template from /packs so the admin UI can prefill it.
-app.get("/api/pack-template/:name", (req, res) => {
+app.get("/api/pack-template/:name", adminLimiter, (req, res) => {
   if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
   const name = String(req.params.name).replace(/[^a-z0-9_-]/gi, "");
   const file = path.join(__dirname, "..", "packs", `${name}.json`);
@@ -185,7 +235,7 @@ app.get("/api/pack-template/:name", (req, res) => {
 });
 
 // List businesses.
-app.get("/api/businesses", async (req, res) => {
+app.get("/api/businesses", adminLimiter, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
     const list = await prisma.business.findMany({
@@ -208,7 +258,7 @@ app.get("/api/businesses", async (req, res) => {
 });
 
 // Leads for one business.
-app.get("/api/leads/:slug", async (req, res) => {
+app.get("/api/leads/:slug", adminLimiter, async (req, res) => {
   try {
     if (!isAdmin(req)) return res.status(401).json({ error: "bad_admin_key" });
     const business = await prisma.business.findUnique({
@@ -233,7 +283,7 @@ app.get("/api/leads/:slug", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // What the chat page needs to render itself (branding + greeting only).
-app.get("/api/pack/:slug", async (req, res) => {
+app.get("/api/pack/:slug", chatLimiter, async (req, res) => {
   try {
     const business = await prisma.business.findUnique({
       where: { slug: req.params.slug },
@@ -260,12 +310,15 @@ app.get("/api/pack/:slug", async (req, res) => {
 
 function buildSuggestions(pack) {
   const s = ["Hours", "Prices"];
-  if (pack.business && pack.business.address) s.push("Where are you?");
-  if (pack.booking && pack.booking.enabled !== false) s.push("Book an appointment");
+  if (pack.service_area) s.push("Do you cover my area?");
+  else if (pack.business && pack.business.address) s.push("Where are you?");
+
+  if (pack.lead_flow && pack.lead_flow.enabled !== false) s.push("Get an estimate");
+  else if (pack.booking && pack.booking.enabled !== false) s.push("Book an appointment");
   return s;
 }
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", chatLimiter, async (req, res) => {
   try {
     const { slug, message } = req.body;
     const sessionId = String(req.body.sessionId || "").slice(0, 64) || "anon";

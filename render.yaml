@@ -1,0 +1,42 @@
+# Render deployment blueprint.
+#
+# The disk is the important part. Render's filesystem is wiped on every deploy
+# and restart, so without a mounted disk the SQLite database — every client,
+# every captured lead — disappears the next time the service redeploys.
+#
+# Migrations run in the start command, not the build command, because the disk
+# is only mounted at runtime.
+
+services:
+  - type: web
+    name: msgplug
+    runtime: node
+    plan: starter # "free" also works, but see the two caveats in README
+    region: ohio # closest of Render's US regions to Florida
+    branch: main
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy && node server/index.js
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Lives on the mounted disk so it survives deploys.
+      - key: DATABASE_URL
+        value: file:/var/data/prod.db
+      # Render generates this. Read it in Dashboard → Environment.
+      - key: ADMIN_KEY
+        generateValue: true
+      # Optional — only needed if you turn on SMS alerts.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+
+    disk:
+      name: msgplug-data
+      mountPath: /var/data
+      sizeGB: 1

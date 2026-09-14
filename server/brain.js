@@ -153,7 +153,7 @@ function cleanName(raw) {
 // Booking flow
 // ---------------------------------------------------------------------------
 
-const BOOKING_PROMPTS = {
+const LEGACY_PROMPTS = {
   service: (pack) => {
     const list = servicesList(pack.services);
     return list
@@ -166,92 +166,240 @@ const BOOKING_PROMPTS = {
     "What day and time work best? (For example: \"Saturday morning\" or \"Thursday after 5\")",
 };
 
-function nextBookingStep(state, order) {
-  for (const step of order) {
-    if (!state.booking[step]) return step;
+const CANCEL_WORDS = ["cancel", "never mind", "nevermind", "stop", "forget it", "quit"];
+
+// A message asking what something costs is a price question, even when it
+// happens to contain a trigger word: "how much is a service call" must quote
+// the price, not open an estimate form.
+const PRICE_QUESTION_WORDS = [
+  "how much", "what do you charge", "charge for", "cost", "price", "pricing",
+  "rate", "rates", "how expensive", "ballpark",
+];
+
+const LEGACY_FIELDS = { service: "service", name: "name", phone: "phone", time: "preferredTime" };
+const LEGACY_TYPES = { service: "service", name: "name", phone: "phone", time: "text" };
+const LEGACY_LABELS = { service: "Service", name: "Name", phone: "Phone", time: "Preferred" };
+
+// Appointment businesses (barber, salon) book a slot.
+const BOOKING_TRIGGERS = [
+  "book", "appointment", "appt", "schedule", "reserve", "slot",
+  "get in", "come in", "set something up", "sign me up",
+];
+// Trades quote a job. Different words entirely.
+const ESTIMATE_TRIGGERS = [
+  "estimate", "quote", "come look", "come out", "send someone", "service call",
+  "get someone out", "need someone", "someone out here", "schedule service",
+  "set up service", "book service", "appointment",
+];
+
+/**
+ * A pack defines either `lead_flow` (any vertical) or `booking` (legacy
+ * appointment packs). Both normalize to the same internal shape so one
+ * engine serves a barbershop and an HVAC company.
+ */
+function normalizeFlow(pack) {
+  const lf = pack.lead_flow;
+  if (lf && Array.isArray(lf.steps) && lf.steps.length) {
+    return {
+      enabled: lf.enabled !== false,
+      triggers: (lf.trigger_words && lf.trigger_words.length
+        ? lf.trigger_words
+        : ESTIMATE_TRIGGERS
+      ).map(norm),
+      steps: lf.steps.map((s) => ({
+        key: s.key,
+        prompt: s.prompt || null,
+        type: s.type || "text",
+        field: s.field || null,
+        label: s.label || cap(s.key),
+      })),
+      confirm: lf.confirm,
+      handoff_note: lf.handoff_note,
+    };
   }
+  const b = pack.booking;
+  if (b) {
+    const order = b.ask_order || ["service", "name", "phone", "time"];
+    return {
+      enabled: b.enabled !== false,
+      triggers: BOOKING_TRIGGERS,
+      steps: order.map((k) => ({
+        key: k,
+        prompt: null, // supplied by LEGACY_PROMPTS
+        type: LEGACY_TYPES[k] || "text",
+        field: LEGACY_FIELDS[k] || null,
+        label: LEGACY_LABELS[k] || cap(k),
+      })),
+      confirm: b.confirm,
+      handoff_note: b.handoff_note,
+    };
+  }
+  return { enabled: false, triggers: [], steps: [] };
+}
+
+function cap(s) {
+  return String(s || "").charAt(0).toUpperCase() + String(s || "").slice(1);
+}
+
+function promptFor(step, pack) {
+  if (step.prompt) return step.prompt;
+  const fn = LEGACY_PROMPTS[step.key];
+  return fn ? fn(pack) : `What's your ${step.key}?`;
+}
+
+function nextStep(flow, state) {
+  for (const s of flow.steps) if (!state.booking[s.key]) return s;
   return null;
 }
 
-function handleBookingTurn(pack, state, raw, text) {
-  const order = (pack.booking && pack.booking.ask_order) || [
-    "service",
-    "name",
-    "phone",
-    "time",
-  ];
+function handleFlowTurn(pack, state, raw, text) {
+  const flow = normalizeFlow(pack);
 
-  if (hasAny(text, ["cancel", "never mind", "nevermind", "stop", "forget it"])) {
+  // Whole-word matching matters here: plain substring made "it stopped
+  // working last night" cancel the conversation, which loses a real lead.
+  if (CANCEL_WORDS.some((w) => containsPhrase(text, w))) {
     state.flow = null;
+    state.awaiting = null;
     state.booking = {};
     return { reply: "No problem, cancelled. Anything else I can help with?", intent: "booking_cancel" };
   }
 
-  const step = state.awaiting;
+  const step =
+    flow.steps.find((s) => s.key === state.awaiting) || nextStep(flow, state);
+  if (!step) {
+    state.flow = null;
+    return { reply: pack.fallback || "How else can I help?", intent: "fallback" };
+  }
 
-  if (step === "service") {
+  if (step.type === "service") {
     const svc = findService(text, pack.services);
-    if (svc) {
-      state.booking.service = svc.name;
-      state.booking.servicePrice = svc.price;
-    } else {
-      // Accept free text so nobody gets stuck in a loop.
-      state.booking.service = raw.slice(0, 80);
-    }
-  } else if (step === "name") {
+    state.booking[step.key] = svc ? svc.name : raw.slice(0, 120);
+  } else if (step.type === "name") {
     const n = cleanName(raw);
     if (!n) {
-      return { reply: "Sorry, I missed that — what name should I put down?", intent: "booking_name" };
+      return { reply: "Sorry, I missed that — what name should I put down?", intent: `booking_${step.key}` };
     }
-    state.booking.name = n;
-  } else if (step === "phone") {
+    state.booking[step.key] = n;
+  } else if (step.type === "phone") {
     if (!looksLikePhone(raw)) {
       return {
-        reply: "That doesn't look like a phone number. What's the best number to text you at?",
-        intent: "booking_phone",
+        reply: "That doesn't look like a phone number. What's the best number to reach you at?",
+        intent: `booking_${step.key}`,
       };
     }
-    state.booking.phone = raw.replace(/[^\d+()\-. ]/g, "").trim().slice(0, 30);
-  } else if (step === "time") {
-    state.booking.time = raw.slice(0, 120);
+    state.booking[step.key] = raw.replace(/[^\d+()\-. ]/g, "").trim().slice(0, 30);
+  } else {
+    state.booking[step.key] = raw.slice(0, 300);
   }
 
-  const next = nextBookingStep(state, order);
+  const next = nextStep(flow, state);
   if (next) {
-    state.awaiting = next;
-    return { reply: BOOKING_PROMPTS[next](pack), intent: `booking_${next}` };
+    state.awaiting = next.key;
+    return { reply: promptFor(next, pack), intent: `booking_${next.key}` };
   }
 
-  // Complete
-  const b = state.booking;
+  // --- complete -----------------------------------------------------------
+  const data = state.booking;
+  const lead = { name: null, phone: null, service: null, preferredTime: null, notes: null };
+  const extras = [];
+
+  for (const s of flow.steps) {
+    const v = data[s.key];
+    if (v === undefined || v === null || v === "") continue;
+    if (s.field && Object.prototype.hasOwnProperty.call(lead, s.field)) {
+      lead[s.field] = v;
+    } else {
+      // Steps with no mapped column ride along in notes, so a pack can ask
+      // for anything (city, address, gate code) without a schema change.
+      extras.push(`${s.label}: ${v}`);
+    }
+  }
+  if (extras.length) lead.notes = extras.join(" | ");
+
+  const summaryLines = flow.steps
+    .filter((s) => data[s.key])
+    .map((s) => `• ${s.label}: ${data[s.key]}`);
+
   const confirm =
-    (pack.booking && pack.booking.confirm) ||
-    "You're on the list. Someone will reach out shortly to confirm.";
-  const note = (pack.booking && pack.booking.handoff_note) || "";
-  const phone = pack.business && pack.business.phone;
+    flow.confirm || "You're on the list. Someone will reach out shortly to confirm.";
+  const note = flow.handoff_note || "";
+  const phone = (pack.business && pack.business.phone) || "";
 
   const summary =
-    `Here's what I have:\n` +
-    `• Service: ${b.service}\n` +
-    `• Name: ${b.name}\n` +
-    `• Phone: ${b.phone}\n` +
-    `• Preferred: ${b.time}\n\n` +
+    "Here's what I have:\n" +
+    summaryLines.join("\n") +
+    "\n\n" +
     confirm +
-    (note && phone ? `\n\n${note} ${phone}` : "");
-
-  const lead = {
-    name: b.name,
-    phone: b.phone,
-    service: b.service,
-    preferredTime: b.time,
-    notes: null,
-  };
+    (note ? `\n\n${note.replace(/\{phone\}/g, phone)}` : "");
 
   state.flow = null;
   state.awaiting = null;
   state.booking = {};
 
   return { reply: summary, intent: "booking_complete", lead };
+}
+
+// ---------------------------------------------------------------------------
+// Trade-specific intents
+// ---------------------------------------------------------------------------
+
+/**
+ * "Do you come out to Ruskin?" — the single most common question a contractor
+ * gets, and the one that wastes the most of their time.
+ */
+function checkServiceArea(text, pack) {
+  const sa = pack.service_area;
+  if (!sa) return null;
+
+  const towns = (sa.towns || []).map((t) => ({ raw: t, n: norm(t) }));
+  const hit = towns.find((t) => containsPhrase(text, t.n));
+
+  const asked = hasAny(text, [
+    "do you come", "do you service", "do you serve", "service area",
+    "areas do you", "how far", "travel to", "in my area", "come out to",
+    "do you cover", "you cover", "do you go", "do you work in",
+  ]);
+
+  if (hit) {
+    const base = sa.yes_reply
+      ? sa.yes_reply.replace(/\{town\}/g, hit.raw)
+      : `Yes — we cover ${hit.raw}.`;
+    return { reply: base, intent: "service_area_yes" };
+  }
+
+  if (asked && towns.length) {
+    const list = towns.map((t) => t.raw).join(", ");
+    const note = sa.radius_note ? `${sa.radius_note}\n\n` : "";
+    const outside = sa.outside_reply ? `\n\n${sa.outside_reply}` : "";
+    return {
+      reply: `${note}We regularly work in: ${list}.${outside}\n\nWhat city are you in?`,
+      intent: "service_area",
+    };
+  }
+  return null;
+}
+
+/**
+ * Urgent situations shouldn't be funneled through a four-step form.
+ * Rules marked priority "safety" are checked before anything else, including
+ * a conversation already in progress.
+ */
+function checkEmergency(text, pack, safetyOnly) {
+  const em = pack.emergency;
+  if (!em || em.enabled === false || !Array.isArray(em.rules)) return null;
+  const phone = (pack.business && pack.business.phone) || "";
+
+  for (const rule of em.rules) {
+    if (safetyOnly && rule.priority !== "safety") continue;
+    const kws = (rule.keywords || []).map(norm);
+    if (kws.some((k) => containsPhrase(text, k))) {
+      return {
+        reply: String(rule.reply || "").replace(/\{phone\}/g, phone).trim(),
+        intent: rule.intent || (rule.priority === "safety" ? "safety" : "emergency"),
+      };
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,10 +421,19 @@ function respond(pack, state, raw) {
     return { reply: pack.fallback || "Say that again?", intent: "empty" };
   }
 
-  // Mid-booking? Stay in the flow.
+  // Safety rules outrank everything, including a conversation in progress.
+  const safety = checkEmergency(text, pack, true);
+  if (safety) return safety;
+
+  // Mid-flow? Stay in it. This must come before the emergency check — at the
+  // "what's going on?" step, "my AC isn't cooling" is the answer, not an alarm.
   if (state.flow === "booking") {
-    return handleBookingTurn(pack, state, raw, text);
+    return handleFlowTurn(pack, state, raw, text);
   }
+
+  // Urgent job, not yet in a flow — hand them the phone instead of a form.
+  const urgent = checkEmergency(text, pack, false);
+  if (urgent) return urgent;
 
   const biz = pack.business || {};
   const branding = pack.branding || {};
@@ -303,48 +460,48 @@ function respond(pack, state, raw) {
     return { reply: "Later! Come see us.", intent: "bye" };
   }
 
-  // --- booking intent -----------------------------------------------------
-  if (
-    hasAny(text, [
-      "book",
-      "appointment",
-      "appt",
-      "schedule",
-      "reserve",
-      "slot",
-      "get in",
-      "come in",
-      "set something up",
-      "sign me up",
-    ]) &&
-    pack.booking &&
-    pack.booking.enabled !== false
-  ) {
+  const askingPrice = hasAny(text, PRICE_QUESTION_WORDS);
+
+  // --- service area -------------------------------------------------------
+  // Runs BEFORE the flow trigger on purpose: "do you come out to Ruskin?"
+  // contains the trigger phrase "come out", but it's a question, not a
+  // request for a tech.
+  if (!askingPrice) {
+    const area = checkServiceArea(text, pack);
+    if (area) return area;
+  }
+
+  // --- start the lead flow (booking or estimate) --------------------------
+  const flow = normalizeFlow(pack);
+  if (flow.enabled && !askingPrice && hasAny(text, flow.triggers)) {
     if (biz.booking_url) {
       return {
-        reply: `You can book online here: ${biz.booking_url}\n\nOr tell me what you want and I'll take your info right here.`,
+        reply: `You can book online here: ${biz.booking_url}\n\nOr tell me what you need and I'll take your info right here.`,
         intent: "booking_link",
       };
     }
     state.flow = "booking";
     state.booking = {};
 
-    // If they already named the service, skip that question.
-    const svc = findService(text, pack.services);
-    const order = pack.booking.ask_order || ["service", "name", "phone", "time"];
-    if (svc) {
-      state.booking.service = svc.name;
-      state.booking.servicePrice = svc.price;
+    // If they already named a service, don't ask again.
+    const svcStep = flow.steps.find((s) => s.type === "service");
+    const svc = svcStep ? findService(text, pack.services) : null;
+    if (svc) state.booking[svcStep.key] = svc.name;
+
+    const next = nextStep(flow, state);
+    if (!next) {
+      state.flow = null;
+      return { reply: pack.fallback || "How can I help?", intent: "fallback" };
     }
-    const next = nextBookingStep(state, order);
-    state.awaiting = next;
+    state.awaiting = next.key;
     return {
       reply: svc
-        ? `${svc.name} — ${money(svc.price)}. ${BOOKING_PROMPTS[next](pack)}`
-        : BOOKING_PROMPTS[next](pack),
-      intent: `booking_${next}`,
+        ? `${svc.name} — ${money(svc.price)}. ${promptFor(next, pack)}`
+        : promptFor(next, pack),
+      intent: `booking_${next.key}`,
     };
   }
+
 
   // --- human handoff ------------------------------------------------------
   if (
@@ -515,4 +672,13 @@ function respond(pack, state, raw) {
   };
 }
 
-module.exports = { respond, servicesList, hoursBlock, money, norm };
+module.exports = {
+  respond,
+  servicesList,
+  hoursBlock,
+  money,
+  norm,
+  normalizeFlow,
+  checkServiceArea,
+  checkEmergency,
+};

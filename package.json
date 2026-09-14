@@ -10,7 +10,12 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
-    "setup": "prisma generate && prisma migrate dev --name barber_pack"
+    "db:deploy": "prisma migrate deploy",
+    "setup": "prisma generate && prisma migrate dev --name barber_pack",
+    "test": "node test-brain.js && node test-contractor.js && node test-notify.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
